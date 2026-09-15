@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Age of Steel — Смена пароля</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#12151c; --panel2:#0e1118; --border:#2a2f3a;
+    --orange:#f5921e; --orange2:#ffb347; --text:#eef1f6; --muted:#9aa3b2;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; font-family:"Segoe UI", Roboto, Arial, sans-serif;}
+  body{
+    background: radial-gradient(1200px 600px at 80% -10%, #1a1410 0%, var(--bg) 55%);
+    color:var(--text); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .wrap{width:100%; max-width:480px;}
+  .badge{
+    display:inline-flex; padding:8px 16px; border:1px solid var(--orange); border-radius:999px;
+    color:var(--orange2); font-size:12px; letter-spacing:1px; font-weight:600; margin-bottom:20px;
+  }
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+  }
+  h1{font-size:26px; margin-bottom:8px;}
+  .sub{color:var(--muted); font-size:14px; margin-bottom:20px; word-break:break-all;}
+  label{display:block; font-size:13px; color:var(--muted); margin-bottom:8px;}
+  input{
+    width:100%; padding:14px 16px; border-radius:10px; border:1px solid var(--border);
+    background:var(--panel2); color:var(--text); font-size:15px; outline:none; margin-bottom:16px;
+  }
+  input:focus{border-color:var(--orange);}
+  .btn{
+    display:block; width:100%; padding:14px; border-radius:12px; border:none; cursor:pointer;
+    background:linear-gradient(180deg, var(--orange2), var(--orange)); color:#1a1206;
+    font-size:15px; font-weight:700; box-shadow:0 6px 24px rgba(245,146,30,.35);
+  }
+  .status{min-height:22px; font-size:14px; margin-top:12px;}
+  .status.err{color:#ff5c5c;}
+  .status.ok{color:#54d66b;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="badge">✦ AGE OF STEEL: MODERN TANKS</div>
+  <div class="card">
+    <h1>Смена пароля</h1>
+    <p class="sub" id="accountEmail">Проверяем ссылку...</p>
+
+    <div id="formBlock" class="hidden">
+      <label>Новый пароль (минимум 6 символов):</label>
+      <input type="password" id="newPass" placeholder="Новый пароль">
+      <label>Повторите пароль:</label>
+      <input type="password" id="newPass2" placeholder="Повторите пароль">
+      <button class="btn" onclick="confirmReset()">СМЕНИТЬ ПАРОЛЬ</button>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+  // ⚠️ ТОТ ЖЕ WEB API KEY
+  const API_KEY = "AIzaSyByMhOSTI1xyRsp2EaqvI9jAqW9SC6aDosb";
+  firebase.initializeApp({ apiKey: API_KEY });
+
+  const params = new URLSearchParams(location.search);
+  const mode = params.get("mode");
+  const oobCode = params.get("oobCode");
+
+  const statusEl = document.getElementById("status");
+  const formBlock = document.getElementById("formBlock");
+  const accountEmail = document.getElementById("accountEmail");
+
+  function setStatus(text, type){
+    statusEl.textContent = text;
+    statusEl.className = "status" + (type ? " " + type : "");
+  }
+
+  if(mode === "resetPassword" && oobCode){
+    // Проверяем индивидуальную ссылку и показываем, чей это аккаунт
+    firebase.auth().verifyPasswordResetCode(oobCode)
+      .then(email => {
+        accountEmail.textContent = "Аккаунт: " + email;
+        formBlock.classList.remove("hidden");
+      })
+      .catch(() => {
+        accountEmail.textContent = "";
+        setStatus("Ссылка недействительна или устарела. Запросите новую.", "err");
+      });
+  } else {
+    accountEmail.textContent = "";
+    setStatus("Неверная ссылка для смены пароля.", "err");
+  }
+
+  function confirmReset(){
+    const p1 = document.getElementById("newPass").value;
+    const p2 = document.getElementById("newPass2").value;
+
+    if(p1.length < 6){ setStatus("Пароль должен быть не короче 6 символов", "err"); return; }
+    if(p1 !== p2){ setStatus("Пароли не совпадают", "err"); return; }
+
+    firebase.auth().confirmPasswordReset(oobCode, p1)
+      .then(() => {
+        formBlock.classList.add("hidden");
+        setStatus("Пароль изменён! Возвращайся в игру и входи с новым паролем.", "ok");
+      })
+      .catch(err => {
+        if(err.code === "auth/weak-password") setStatus("Пароль должен быть не короче 6 символов", "err");
+        else setStatus("Ссылка недействительна или устарела. Запросите новую.", "err");
+      });
+  }
+</script>
+</body>
+</html>
