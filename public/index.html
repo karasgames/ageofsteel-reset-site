@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Age of Steel — Восстановление доступа</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#12151c; --panel2:#0e1118; --border:#2a2f3a;
+    --orange:#f5921e; --orange2:#ffb347; --text:#eef1f6; --muted:#9aa3b2;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; font-family:"Segoe UI", Roboto, Arial, sans-serif;}
+  body{
+    background: radial-gradient(1200px 600px at 80% -10%, #1a1410 0%, var(--bg) 55%);
+    color:var(--text); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .wrap{width:100%; max-width:560px;}
+  .badge{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 16px; border:1px solid var(--orange);
+    border-radius:999px; color:var(--orange2); font-size:12px; letter-spacing:1px; font-weight:600; margin-bottom:20px;
+  }
+  h1{font-size:40px; line-height:1.15; margin-bottom:14px;}
+  h1 .accent{color:var(--orange);}
+  .sub{color:var(--muted); font-size:15px; line-height:1.6; margin-bottom:26px;}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+  }
+  .card h2{font-size:20px; margin-bottom:18px; letter-spacing:.5px;}
+  .btn{
+    display:block; width:100%; padding:14px 18px; border-radius:12px; border:none; cursor:pointer;
+    font-size:15px; font-weight:700; letter-spacing:.4px; margin-bottom:12px; transition:.15s;
+  }
+  .btn-primary{
+    background:linear-gradient(180deg, var(--orange2), var(--orange));
+    color:#1a1206; box-shadow:0 6px 24px rgba(245,146,30,.35);
+  }
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-ghost{
+    background:transparent; color:var(--text); border:1px solid var(--border);
+  }
+  .btn-ghost:hover{border-color:var(--orange); color:var(--orange2);}
+  .link{color:var(--orange2); cursor:pointer; font-size:14px; text-decoration:underline; background:none; border:none;}
+  label{display:block; font-size:13px; color:var(--muted); margin-bottom:8px;}
+  input{
+    width:100%; padding:14px 16px; border-radius:10px; border:1px solid var(--border);
+    background:var(--panel2); color:var(--text); font-size:15px; outline:none; margin-bottom:16px;
+  }
+  input:focus{border-color:var(--orange);}
+  .status{min-height:22px; font-size:14px; margin-top:10px;}
+  .status.err{color:#ff5c5c;}
+  .status.ok{color:#54d66b;}
+  .hidden{display:none;}
+  .note{
+    margin-top:18px; padding:14px 16px; border:1px solid var(--border); border-radius:12px;
+    color:var(--muted); font-size:13px; line-height:1.5; background:var(--panel2);
+  }
+  #toast{
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    background:var(--panel); border:1px solid var(--orange); color:var(--orange2);
+    padding:22px 44px; border-radius:14px; font-size:26px; font-weight:800; letter-spacing:2px;
+    box-shadow:0 0 60px rgba(245,146,30,.35); z-index:99;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="badge">✦ AGE OF STEEL: MODERN TANKS — ЦЕНТР ВОССТАНОВЛЕНИЯ</div>
+  <h1>Восстановление <span class="accent">доступа</span> к аккаунту</h1>
+  <p class="sub">Выбери, что забыл — и мы поможем вернуться в бой. Письмо со ссылкой придёт на твою почту.</p>
+
+  <!-- МЕНЮ: 2 КНОПКИ -->
+  <div class="card" id="menuView">
+    <h2>Что случилось?</h2>
+    <button class="btn btn-primary" onclick="showReset()">Не помню пароль</button>
+    <button class="btn btn-ghost" onclick="showWip()">Не помню эл. почту</button>
+    <div class="note"><b>Игра в разработке:</b> восстановление пароля работает через почту, к которой привязан аккаунт.</div>
+  </div>
+
+  <!-- ФОРМА ВОССТАНОВЛЕНИЯ (та же страница, без новой вкладки) -->
+  <div class="card hidden" id="resetView">
+    <h2>ВОССТАНОВЛЕНИЕ ПАРОЛЯ</h2>
+    <label>Введите email (логин), к которому привязан аккаунт:</label>
+    <input type="email" id="emailInput" placeholder="Введите email">
+    <button class="btn btn-primary" id="sendBtn" onclick="sendReset()">ПРОДОЛЖИТЬ</button>
+    <button class="link" onclick="showMenu()">Отмена</button>
+    <div class="status" id="status"></div>
+  </div>
+</div>
+
+<div id="toast" class="hidden">В РАЗРАБОТКЕ</div>
+
+<script>
+  // ⚠️ WEB API KEY из консоли Firebase (тот же, что в AccountManager.apiKey)
+  const API_KEY = "AIzaSyByMhOSTI1xyRsp2EaqvI9jAqW9SC6aDosb";
+
+  const menuView = document.getElementById("menuView");
+  const resetView = document.getElementById("resetView");
+  const statusEl = document.getElementById("status");
+  const toast = document.getElementById("toast");
+
+  function showReset(){ menuView.classList.add("hidden"); resetView.classList.remove("hidden"); setStatus("", ""); }
+  function showMenu(){ resetView.classList.add("hidden"); menuView.classList.remove("hidden"); }
+
+  function showWip(){
+    toast.classList.remove("hidden");
+    setTimeout(() => toast.classList.add("hidden"), 5000); // исчезает через 5 сек
+  }
+
+  function setStatus(text, type){
+    statusEl.textContent = text;
+    statusEl.className = "status" + (type ? " " + type : "");
+  }
+
+  function translateError(msg){
+    switch(msg){
+      case "EMAIL_NOT_FOUND": return "Аккаунт с такой почтой не найден";
+      case "INVALID_EMAIL": return "Некорректный email";
+      case "TOO_MANY_ATTEMPTS_TRY_LATER": return "Слишком много попыток. Попробуйте позже";
+      case "MISSING_EMAIL": return "Введите email";
+      default: return "Ошибка: " + msg;
+    }
+  }
+
+  async function sendReset(){
+    const email = document.getElementById("emailInput").value.trim();
+    if(!email){ setStatus("Введите email", "err"); return; }
+
+    const btn = document.getElementById("sendBtn");
+    btn.disabled = true;
+    setStatus("Отправляем письмо...", "");
+
+    try{
+      const resp = await fetch("https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=" + API_KEY, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestType: "PASSWORD_RESET", email: email })
+      });
+      const data = await resp.json();
+
+      if(!resp.ok){
+        setStatus(translateError(data.error && data.error.message), "err");
+      } else {
+        setStatus("Письмо с индивидуальной ссылкой отправлено на " + email, "ok");
+      }
+    }catch(e){
+      setStatus("Ошибка сети. Попробуйте позже", "err");
+    }
+
+    btn.disabled = false;
+  }
+</script>
+</body>
+</html>
